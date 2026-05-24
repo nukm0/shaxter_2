@@ -2,725 +2,281 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Miner Game — Шахтёр TG Mini App</title>
-    <!-- Telegram WebApp (подтягивает ID, ник, аватар) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Шахтёр — добывай ресурсы</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            font-family: 'Segoe UI', system-ui, -apple-system, 'Roboto', sans-serif;
-            background: #0b1a2e;
-            color: #f0f3f8;
-            overflow-x: hidden;
-            padding-bottom: 80px;
-        }
-
-        /* Анимированный фон: рельсы, вагонетки, алмазы */
-        .animated-mine-bg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 0;
-            overflow: hidden;
-        }
-
-        .rails {
-            position: absolute;
-            bottom: 20px;
-            left: 0;
-            width: 100%;
-            height: 20px;
-            background: repeating-linear-gradient(90deg, #5a4a3a 0px, #5a4a3a 30px, #3e2e22 30px, #3e2e22 60px);
-            border-top: 3px solid #9b7e5f;
-            border-bottom: 3px solid #4e3a28;
-        }
-
-        .minecart {
-            position: absolute;
-            bottom: 5px;
-            left: -80px;
-            width: 70px;
-            height: 40px;
-            background: #b87c4f;
-            border-radius: 8px 8px 4px 4px;
-            animation: cartMove 12s linear infinite;
-            box-shadow: 0 0 6px gold;
-            z-index: 2;
-        }
-
-        .minecart::before {
-            content: "⛏️";
-            position: absolute;
-            left: 8px;
-            top: -20px;
-            font-size: 28px;
-        }
-
-        .diamond-spark {
-            position: absolute;
-            font-size: 20px;
-            animation: sparkle 3s infinite alternate;
-            opacity: 0.6;
-        }
-
-        @keyframes cartMove {
-            0% { left: -80px; }
-            100% { left: 100%; }
-        }
-
-        @keyframes sparkle {
-            0% { opacity: 0.2; transform: translateY(0px);}
-            100% { opacity: 1; transform: translateY(-10px);}
-        }
-
-        /* основной контент */
-        .container {
-            position: relative;
-            z-index: 2;
-            max-width: 550px;
-            margin: 0 auto;
-            padding: 12px 16px 100px;
-        }
-
-        .profile-card {
-            background: rgba(20, 30, 45, 0.85);
-            backdrop-filter: blur(8px);
-            border-radius: 28px;
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            margin-bottom: 20px;
-            border: 1px solid rgba(255,215,0,0.3);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
-        }
-
-        .avatar {
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: radial-gradient(circle at 30% 30%, #f1c40f, #e67e22);
-            box-shadow: 0 0 0 2px #f39c12;
-            overflow: hidden;
-        }
-
-        .avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .user-info {
-            flex: 1;
-        }
-
-        .user-info h3 {
-            font-size: 1.2rem;
-        }
-
-        .user-info p {
-            font-size: 0.7rem;
-            opacity: 0.7;
-        }
-
-        .profile-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .tg-btn {
-            background: #2c3e50;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 40px;
-            font-size: 11px;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .balances {
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .balance-item {
-            background: #1e2a3a;
-            flex: 1;
-            text-align: center;
-            padding: 10px 5px;
-            border-radius: 20px;
-            font-weight: bold;
-            box-shadow: inset 0 -1px 0 #2c3e4e, 0 2px 6px black;
-        }
-
-        .mine-hold {
-            background: radial-gradient(circle, #f39c12, #b96f0f);
-            width: 100%;
-            padding: 28px 0;
-            font-size: 2rem;
-            font-weight: bold;
-            border-radius: 70px;
-            text-align: center;
-            margin-bottom: 24px;
-            cursor: pointer;
-            transition: 0.05s linear;
-            box-shadow: 0 8px 0 #7e4a0e;
-            user-select: none;
-        }
-
-        .mine-hold:active {
-            transform: translateY(4px);
-            box-shadow: 0 4px 0 #7e4a0e;
-        }
-
-        .section {
-            background: #111c28aa;
-            backdrop-filter: blur(4px);
-            border-radius: 24px;
-            padding: 12px 16px;
-            margin-bottom: 20px;
-            border: 1px solid #2c4c6c;
-        }
-
-        .section-title {
-            font-size: 1.2rem;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border-left: 4px solid gold;
-            padding-left: 10px;
-        }
-
-        .miner-grid, .cases-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 8px;
-        }
-
-        .miner-card, .case-card {
-            background: #0f1b24;
-            flex: 1;
-            min-width: 100px;
-            border-radius: 20px;
-            padding: 8px;
-            text-align: center;
-            cursor: pointer;
-            transition: 0.1s;
-            border: 1px solid #2c5a6e;
-        }
-
-        .miner-card:active, .case-card:active { background: #1e3a47; }
-        button {
-            background: #f39c12;
-            border: none;
-            padding: 8px 14px;
-            border-radius: 30px;
-            font-weight: bold;
-            color: #0a1a1f;
-            margin-top: 6px;
-            cursor: pointer;
-        }
+        * { box-sizing: border-box; user-select: none; }
+        body { font-family: system-ui, sans-serif; background: #1e1e2f; color: #fff; margin: 0; padding: 16px; }
+        .container { max-width: 500px; margin: 0 auto; }
+        .card { background: #2a2a3b; border-radius: 20px; padding: 16px; margin-bottom: 12px; }
+        .flex { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+        .balance { font-size: 20px; font-weight: bold; }
+        .balance span { font-size: 14px; color: #aaa; }
+        button { background: #ffb347; border: none; border-radius: 40px; padding: 10px 20px; font-weight: bold; color: #1e1e2f; cursor: pointer; }
         button:active { transform: scale(0.97); }
-
-        .task-item {
-            background: #07121e;
-            margin: 8px 0;
-            padding: 8px 12px;
-            border-radius: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .admin-panel {
-            background: #2c3e2f;
-            border: 2px solid #f1c40f;
-            margin-top: 20px;
-        }
-
-        .banner {
-            background: #e67e22;
-            padding: 8px;
-            border-radius: 28px;
-            text-align: center;
-            margin-bottom: 12px;
-            font-weight: bold;
-        }
-
-        .copy-link {
-            background: #2c3e50;
-            font-size: 12px;
-            padding: 4px 8px;
-            border-radius: 40px;
-            cursor: pointer;
-            display: inline-block;
-            margin-top: 6px;
-        }
-        footer { text-align: center; font-size: 10px; margin-top: 20px; opacity: 0.6; }
+        .click-area { background: #3b3b4f; border-radius: 100px; text-align: center; padding: 30px; font-size: 48px; cursor: pointer; transition: 0.1s; }
+        .click-area:active { transform: scale(0.95); }
+        .nav { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 16px; }
+        .nav button { flex: 1; background: #3a3a4e; color: white; }
+        .active-tab { background: #ffb347; color: black; }
+        .section { display: none; }
+        .section.active { display: block; }
+        .miner-item { margin-bottom: 12px; background: #252535; border-radius: 16px; padding: 10px; }
+        .price { color: #ffd966; }
+        .error { color: #ff8888; }
+        .success { color: #88ff88; }
     </style>
 </head>
 <body>
-<div class="animated-mine-bg">
-    <div class="rails"></div>
-    <div class="minecart"></div>
-    <div class="diamond-spark" style="top:15%; left:10%;">💎</div>
-    <div class="diamond-spark" style="top:60%; left:70%; animation-duration: 2s;">✨</div>
-    <div class="diamond-spark" style="top:80%; left:30%;">⛏️</div>
+<div class="container">
+    <div class="card flex">
+        <div>💎 <span id="diamonds">0</span></div>
+        <div>💰 <span id="gold">0</span></div>
+        <div>🛢️ <span id="oil">0</span></div>
+    </div>
+    <div class="card click-area" id="clickArea">
+        ⛏️ КЛИК
+    </div>
+    <div class="card">📈 Доход в сек: <span id="incomePerSec">0</span> 💎</div>
+
+    <div class="nav">
+        <button data-tab="mines">⛏️ Шахты</button>
+        <button data-tab="shop">🛒 Магазин</button>
+        <button data-tab="tasks">📋 Задания</button>
+        <button data-tab="profile">👤 Профиль</button>
+    </div>
+
+    <!-- Вкладка Шахты -->
+    <div id="mines" class="section active">
+        <div class="card">
+            <div class="flex"><span>🏭 Уровень шахты: <span id="mineLevel">1</span></span><button id="upgradeMine">Улучшить (золото)</button></div>
+            <div>⛏️ Кирка ур. <span id="pickaxeLevel">1</span> <button id="upgradePickaxe">Улучшить (💎)</button></div>
+        </div>
+        <div id="minersList"></div>
+    </div>
+
+    <!-- Вкладка Магазин -->
+    <div id="shop" class="section">
+        <div class="card">
+            <h3>📦 Боксы</h3>
+            <button id="openCommonBox">Открыть обычный бокс (100💎)</button>
+            <button id="openRareBox">Открыть редкий бокс (1000💎)</button>
+            <button id="openDonatBox">Открыть донатный бокс (200🛢️)</button>
+        </div>
+        <div class="card">
+            <h3>💱 Обмен</h3>
+            <input type="number" id="exchangeAmount" placeholder="Алмазы">
+            <button id="exchangeBtn">Обменять на золото (1 алмаз = 0.1 золота)</button>
+        </div>
+        <div class="card">
+            <h3>⚡ Буст</h3>
+            <button id="buyBoost2x">Купить x2 на 1 час (1000 золота)</button>
+        </div>
+    </div>
+
+    <!-- Вкладка Задания (заглушка) -->
+    <div id="tasks" class="section">
+        <div class="card">📌 Задания будут доступны после админ-ивентов</div>
+    </div>
+
+    <!-- Вкладка Профиль -->
+    <div id="profile" class="section">
+        <div class="card">
+            <p>⏱️ Время в игре: <span id="timePlayed">0</span> сек</p>
+            <button id="withdrawOil">Вывести нефть (от 50🛢️)</button>
+            <button id="depositOil">Пополнить нефть (от 50🛢️)</button>
+            <hr>
+            <button id="supportBtn">📞 Поддержка</button>
+        </div>
+        <div class="card">
+            <h3>🏆 Топ игроков</h3>
+            <div id="topList"></div>
+        </div>
+    </div>
 </div>
-<div class="container" id="app"></div>
 
 <script>
-    // ---------- Инициализация Telegram (автоматическая привязка) ----------
-    const tg = window.Telegram.WebApp;
-    tg.ready();
+    let tg = window.Telegram.WebApp;
     tg.expand();
-
-    // Пользовательские данные из Telegram
-    let tgUser = tg.initDataUnsafe?.user || { id: 123456789, first_name: "Шахтёр", username: "miner" };
-    const USER_ID = String(tgUser.id);
-    const isAdmin = (USER_ID === "998579758");
-
-    // ---------- Глобальное хранилище всех игроков (для админ панели) ----------
-    let allUsersDB = {};
-
-    function loadAllUsers() {
-        const stored = localStorage.getItem("miner_game_all_users");
-        if(stored) allUsersDB = JSON.parse(stored);
-        else allUsersDB = {};
-    }
-    function saveAllUsers() {
-        localStorage.setItem("miner_game_all_users", JSON.stringify(allUsersDB));
+    let initDataUnsafe = tg.initDataUnsafe;
+    let userId = initDataUnsafe.user?.id;
+    if (!userId) {
+        alert("Запустите приложение через Telegram");
+        userId = "test123"; // для теста
     }
 
-    // Модель данных игрока
-    const defaultPlayerState = {
-        diamonds: 100,
-        money: 500,
-        oil: 2,
-        miners: [0,0,0,0,0,0,0],    // 7 уровней шахтёров
-        oilMinerLevel: 0,
-        totalDiamondsMined: 0,
-        totalTasksCompleted: 0,
-        referralCount: 0,
-        invitedBy: null,
-        referredUsers: [],
-        lastDaily: 0,
-        playTimeSeconds: 0,
-        lastLoginTime: Date.now(),
-        tasksProgress: {},
-        tasksCompleted: {},
-        stats: { casesOpened: { simple:0, medium:0, premium:0 }, convertDiamondsTotal: 0 },
-    };
+    let currentUser = {};
+    let clickInterval = null;
 
-    // Цены и доход шахтёров (7 типов)
-    const minerBaseCost = [30, 150, 500, 1500, 5000, 20000, 75000];
-    const minerBaseIncome = [1, 3, 8, 25, 80, 250, 800];  // алмазов/сек за 1 уровень
-    const minerPriceMultiplier = 1.55;
-    let oilMinerBaseCost = 5;        // нефти за покупку
-    let oilMinerIncome = 0.012;      // нефти в секунду за уровень
-
-    let playerState = { ...defaultPlayerState, tasksProgress: {}, tasksCompleted: {} };
-    let holdInterval = null;
-    let lastTimestamp = Date.now();
-    let passiveInterval = null;
-
-    // ---------- 14 заданий ----------
-    const tasksList = [
-        { id:0, name:"Добыть 500 💎", target:500, type:"diamonds_mined", reward:{diamonds:50,money:200,oil:0} },
-        { id:1, name:"Добыть 3000 💎", target:3000, type:"diamonds_mined", reward:{diamonds:200,money:800,oil:1} },
-        { id:2, name:"Накопить 5000 💰", target:5000, type:"money_hold", reward:{diamonds:0,money:1500,oil:0} },
-        { id:3, name:"Открыть 5 простых кейсов", target:5, type:"open_simple_case", reward:{diamonds:100,money:500,oil:0} },
-        { id:4, name:"Открыть 3 средних кейса", target:3, type:"open_medium_case", reward:{diamonds:250,money:1200,oil:1} },
-        { id:5, name:"Открыть 1 премиум кейс", target:1, type:"open_premium_case", reward:{diamonds:400,money:2000,oil:2} },
-        { id:6, name:"Купить шахтёра 3 уровня", target:1, type:"miner_lv3_buy", reward:{diamonds:200,money:1000,oil:0} },
-        { id:7, name:"Улучшить нефтяного шахтёра до 3 уровня", target:3, type:"oil_miner_lv", reward:{diamonds:300,money:1500,oil:2} },
-        { id:8, name:"Пригласить 1 друга", target:1, type:"referral_count", reward:{diamonds:100,money:1000,oil:2} },
-        { id:9, name:"Пригласить 3 друзей", target:3, type:"referral_count", reward:{diamonds:300,money:2500,oil:5} },
-        { id:10, name:"Сконвертировать 2000 💎 → 💰", target:2000, type:"convert_diamonds", reward:{diamonds:0,money:3000,oil:1} },
-        { id:11, name:"Сыграть 30 минут", target:1800, type:"playtime", reward:{diamonds:100,money:800,oil:1} },
-        { id:12, name:"Выполнить 7 заданий", target:7, type:"tasks_done", reward:{diamonds:500,money:2500,oil:3} },
-        { id:13, name:"Накопить 10 🛢️", target:10, type:"oil_hold", reward:{diamonds:400,money:2000,oil:5} }
-    ];
-
-    function initTasksProgress() {
-        if(!playerState.tasksProgress) playerState.tasksProgress = {};
-        tasksList.forEach(t => { if(playerState.tasksProgress[t.id]===undefined) playerState.tasksProgress[t.id]=0; });
-        if(!playerState.tasksCompleted) playerState.tasksCompleted = {};
+    async function fetchUser() {
+        const res = await fetch(`/api/user/${userId}`);
+        const data = await res.json();
+        if (data.banned) return alert("Вы забанены");
+        currentUser = data;
+        updateUI();
     }
 
-    // Сохранение текущего игрока
-    function persistPlayer() {
-        if(!playerState) return;
-        allUsersDB[USER_ID] = JSON.parse(JSON.stringify(playerState));
-        saveAllUsers();
-        localStorage.setItem(`miner_last_${USER_ID}`, JSON.stringify(playerState));
+    function updateUI() {
+        document.getElementById('diamonds').innerText = currentUser.diamonds || 0;
+        document.getElementById('gold').innerText = currentUser.gold || 0;
+        document.getElementById('oil').innerText = currentUser.oil || 0;
+        document.getElementById('incomePerSec').innerText = currentUser.incomePerSec || 0;
+        document.getElementById('mineLevel').innerText = currentUser.mineLevel;
+        document.getElementById('pickaxeLevel').innerText = currentUser.pickaxeLevel;
+        document.getElementById('timePlayed').innerText = currentUser.totalTimePlayed || 0;
+        renderMiners();
     }
 
-    // Обновление прогресса заданий
-    function updateTasksFromStats() {
-        let prog = playerState.tasksProgress;
-        if(!prog) return;
-        prog[0] = playerState.totalDiamondsMined;
-        prog[1] = playerState.totalDiamondsMined;
-        prog[2] = playerState.money;
-        prog[3] = playerState.stats.casesOpened.simple;
-        prog[4] = playerState.stats.casesOpened.medium;
-        prog[5] = playerState.stats.casesOpened.premium;
-        prog[6] = (playerState.miners[2] > 0) ? 1 : 0;
-        prog[7] = playerState.oilMinerLevel;
-        prog[8] = playerState.referralCount;
-        prog[9] = playerState.referralCount;
-        prog[10] = playerState.stats.convertDiamondsTotal || 0;
-        prog[11] = playerState.playTimeSeconds;
-        prog[12] = playerState.totalTasksCompleted;
-        prog[13] = playerState.oil;
-        checkTaskCompletion();
-    }
-
-    function checkTaskCompletion() {
-        let completed = playerState.tasksCompleted || {};
-        let updated = false;
-        tasksList.forEach(task => {
-            if(!completed[task.id]) {
-                let current = playerState.tasksProgress[task.id];
-                if(current >= task.target) {
-                    completed[task.id] = true;
-                    playerState.diamonds += task.reward.diamonds;
-                    playerState.money += task.reward.money;
-                    playerState.oil += task.reward.oil;
-                    playerState.totalTasksCompleted = (playerState.totalTasksCompleted || 0) + 1;
-                    updated = true;
-                    tg.showPopup({title:"Задание выполнено!", message:`${task.name} +${task.reward.diamonds}💎 +${task.reward.money}💰`});
-                }
-            }
+    function renderMiners() {
+        const container = document.getElementById('minersList');
+        container.innerHTML = '';
+        for (let lvl=1; lvl<=7; lvl++) {
+            const count = currentUser.miners[lvl] || 0;
+            const nextPrice = getMinerPrice(lvl, count+1);
+            container.innerHTML += `
+                <div class="miner-item flex">
+                    <div>⛏️ Шахтёр ${lvl} ур. (кол-во: ${count})<br>Доход: ${MINER_INCOME_BASE[lvl]}💎/сек</div>
+                    <button class="buyMinerBtn" data-level="${lvl}">Купить за ${nextPrice}💎</button>
+                </div>
+            `;
+        }
+        document.querySelectorAll('.buyMinerBtn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const level = parseInt(btn.dataset.level);
+                const res = await fetch('/api/buy-miner', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId, level}) });
+                const result = await res.json();
+                if(result.success) fetchUser();
+                else alert(result.error);
+            });
         });
-        playerState.tasksCompleted = completed;
-        if(updated) { updateTasksFromStats(); persistPlayer(); renderUI(); }
     }
 
-    // Загрузка игрока с учётом реферальной системы
-    function loadPlayer() {
-        loadAllUsers();
-        if(allUsersDB[USER_ID]) {
-            playerState = JSON.parse(JSON.stringify(allUsersDB[USER_ID]));
-        } else {
-            let saved = localStorage.getItem(`miner_last_${USER_ID}`);
-            if(saved) playerState = JSON.parse(saved);
-            else {
-                playerState = JSON.parse(JSON.stringify(defaultPlayerState));
-                playerState.tasksProgress = {};
-                playerState.tasksCompleted = {};
-                // Реферальная логика: если есть ref параметр
-                const urlParams = new URLSearchParams(window.location.search);
-                const startParam = tg.initDataUnsafe?.start_param || urlParams.get('ref');
-                if(startParam && startParam !== USER_ID) {
-                    playerState.invitedBy = startParam;
-                    playerState.money += 1000;  // новому бонус 1000
-                    // награда пригласившему (отложенный бонус)
-                    let inviterData = allUsersDB[startParam];
-                    if(inviterData) {
-                        inviterData.money = (inviterData.money || 0) + 1000;
-                        inviterData.referralCount = (inviterData.referralCount || 0) + 1;
-                        if(!inviterData.referredUsers) inviterData.referredUsers = [];
-                        inviterData.referredUsers.push(USER_ID);
-                        allUsersDB[startParam] = inviterData;
-                        saveAllUsers();
-                    } else {
-                        let pending = localStorage.getItem(`pending_bonus_${startParam}`);
-                        let newBonus = (pending ? parseInt(pending) : 0) + 1000;
-                        localStorage.setItem(`pending_bonus_${startParam}`, newBonus);
-                        // также увеличим счетчик рефералов при следующем входе
-                        let pendingRefCount = localStorage.getItem(`pending_refcount_${startParam}`);
-                        localStorage.setItem(`pending_refcount_${startParam}`, (pendingRefCount?parseInt(pendingRefCount):0)+1);
-                    }
-                }
-            }
-        }
-        // Применить отложенный бонус для текущего игрока
-        let pendingBonus = localStorage.getItem(`pending_bonus_${USER_ID}`);
-        if(pendingBonus) {
-            playerState.money += parseInt(pendingBonus);
-            localStorage.removeItem(`pending_bonus_${USER_ID}`);
-        }
-        let pendingRefInc = localStorage.getItem(`pending_refcount_${USER_ID}`);
-        if(pendingRefInc) {
-            playerState.referralCount = (playerState.referralCount || 0) + parseInt(pendingRefInc);
-            localStorage.removeItem(`pending_refcount_${USER_ID}`);
-        }
-        if(!playerState.miners || playerState.miners.length !== 7) playerState.miners = [0,0,0,0,0,0,0];
-        if(playerState.oilMinerLevel === undefined) playerState.oilMinerLevel = 0;
-        if(!playerState.stats) playerState.stats = { casesOpened: { simple:0, medium:0, premium:0 }, convertDiamondsTotal:0 };
-        if(!playerState.referredUsers) playerState.referredUsers = [];
-        if(!playerState.referralCount) playerState.referralCount = playerState.referredUsers.length;
-        initTasksProgress();
-        updateTasksFromStats();
-        persistPlayer();
+    // Helper для цены шахтера
+    const MINER_BASE_PRICE = [0,100,200,350,550,800,1100,1500];
+    function getMinerPrice(level, count) {
+        let base = MINER_BASE_PRICE[level];
+        return Math.floor(base * Math.pow(1.35, count-1));
     }
+    const MINER_INCOME_BASE = [0,5,10,20,35,55,80,120];
 
-    // Пассивный доход (раз в секунду)
-    function startPassiveIncome() {
-        if(passiveInterval) clearInterval(passiveInterval);
-        passiveInterval = setInterval(() => {
-            let incomeDiamonds = 0;
-            for(let i=0; i<7; i++) incomeDiamonds += playerState.miners[i] * minerBaseIncome[i];
-            let oilIncome = playerState.oilMinerLevel * oilMinerIncome;
-            playerState.diamonds += incomeDiamonds;
-            playerState.oil = Math.max(0, playerState.oil + oilIncome);
-            playerState.totalDiamondsMined += incomeDiamonds;
-            updateTasksFromStats();
-            persistPlayer();
-            renderUI();
-        }, 1000);
+    // Кликер (простой клик)
+    async function sendClick(clicks=1) {
+        const res = await fetch('/api/click', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId, clicks}) });
+        const data = await res.json();
+        if(data.success) fetchUser();
     }
-
-    // Удержание для фарма
-    function startHoldMining() {
-        if(holdInterval) clearInterval(holdInterval);
-        holdInterval = setInterval(() => {
-            playerState.diamonds += 2;
-            playerState.totalDiamondsMined += 2;
-            updateTasksFromStats();
-            persistPlayer();
-            renderUI();
+    // Обработка зажима
+    let clickTimer = null;
+    let clickCount = 0;
+    function startHold() {
+        clickCount = 0;
+        clickTimer = setInterval(() => {
+            clickCount++;
+            sendClick(1);
         }, 100);
     }
-    function stopHoldMining() { if(holdInterval) { clearInterval(holdInterval); holdInterval=null; } }
-
-    // Покупка шахтёра (индекс 0-6)
-    function buyMiner(index) {
-        let count = playerState.miners[index];
-        let cost = Math.floor(minerBaseCost[index] * Math.pow(minerPriceMultiplier, count));
-        if(playerState.diamonds >= cost) {
-            playerState.diamonds -= cost;
-            playerState.miners[index]++;
-            updateTasksFromStats();
-            persistPlayer();
-            renderUI();
-            tg.showPopup({title:"Успех", message:`Шахтёр ${index+1} улучшен!`});
-        } else tg.showPopup({title:"Не хватает алмазов", message:`Нужно ${cost}💎`});
+    function endHold() {
+        clearInterval(clickTimer);
     }
-    function buyOilMiner() {
-        let cost = Math.floor(oilMinerBaseCost * Math.pow(1.4, playerState.oilMinerLevel));
-        if(playerState.oil >= cost) {
-            playerState.oil -= cost;
-            playerState.oilMinerLevel++;
-            updateTasksFromStats();
-            persistPlayer();
-            renderUI();
-        } else tg.showPopup({title:"Мало нефти", message:`Нужно ${cost}🛢️`});
-    }
+    document.getElementById('clickArea').addEventListener('mousedown', startHold);
+    document.getElementById('clickArea').addEventListener('mouseup', endHold);
+    document.getElementById('clickArea').addEventListener('touchstart', startHold);
+    document.getElementById('clickArea').addEventListener('touchend', endHold);
+    document.getElementById('clickArea').addEventListener('click', () => sendClick(1));
 
-    // Кейсы
-    function openCase(type) {
-        let costMoney=0, costOil=0;
-        if(type==='simple') costMoney=100;
-        else if(type==='medium') costMoney=1000;
-        else if(type==='premium') costOil=10;
-        if(costMoney && playerState.money < costMoney) { tg.showPopup({title:"Ошибка", message:`Нужно ${costMoney}💰`}); return; }
-        if(costOil && playerState.oil < costOil) { tg.showPopup({title:"Ошибка", message:`Нужно ${costOil}🛢️`}); return; }
-        if(costMoney) playerState.money -= costMoney;
-        if(costOil) playerState.oil -= costOil;
-        let diamondReward = 0, moneyReward=0, oilReward=0;
-        if(type==='simple') { diamondReward = Math.floor(80+Math.random()*120); moneyReward=Math.floor(50+Math.random()*80); }
-        if(type==='medium') { diamondReward = Math.floor(400+Math.random()*600); moneyReward=Math.floor(300+Math.random()*500); oilReward=Math.random()<0.3?1:0; }
-        if(type==='premium') { diamondReward = Math.floor(1500+Math.random()*2000); moneyReward=1500; oilReward=Math.floor(2+Math.random()*6); }
-        playerState.diamonds += diamondReward;
-        playerState.money += moneyReward;
-        playerState.oil += oilReward;
-        playerState.stats.casesOpened[type]++;
-        updateTasksFromStats();
-        persistPlayer();
-        renderUI();
-        tg.showPopup({title:"Кейс открыт!", message:`+${diamondReward}💎 +${moneyReward}💰 +${oilReward}🛢️`});
+    // Обмен
+    document.getElementById('exchangeBtn').addEventListener('click', async () => {
+        const amount = parseInt(document.getElementById('exchangeAmount').value);
+        if(isNaN(amount)) return;
+        const res = await fetch('/api/exchange', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId, diamondsAmount:amount}) });
+        const data = await res.json();
+        if(data.success) fetchUser();
+        else alert(data.error);
+    });
+
+    // Улучшения
+    document.getElementById('upgradeMine').addEventListener('click', async () => {
+        const res = await fetch('/api/upgrade-mine', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId}) });
+        const data = await res.json();
+        if(data.success) fetchUser();
+        else alert(data.error);
+    });
+    document.getElementById('upgradePickaxe').addEventListener('click', async () => {
+        const res = await fetch('/api/upgrade-pickaxe', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId}) });
+        const data = await res.json();
+        if(data.success) fetchUser();
+        else alert(data.error);
+    });
+
+    // Боксы
+    document.getElementById('openCommonBox').addEventListener('click', () => openBox('common'));
+    document.getElementById('openRareBox').addEventListener('click', () => openBox('rare'));
+    document.getElementById('openDonatBox').addEventListener('click', () => openBox('donat'));
+    async function openBox(type) {
+        const res = await fetch('/api/open-box', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId, boxType:type}) });
+        const data = await res.json();
+        if(data.success) {
+            alert(`Вы получили ${data.reward} ${data.rewardCurrency}`);
+            fetchUser();
+        } else alert(data.error);
     }
 
-    // Конвертация алмазов в деньги (1:1)
-    function convertDiamonds() {
-        if(playerState.diamonds >= 1) {
-            let convert = Math.floor(playerState.diamonds);
-            let gain = convert;
-            playerState.money += gain;
-            playerState.diamonds -= convert;
-            if(!playerState.stats.convertDiamondsTotal) playerState.stats.convertDiamondsTotal=0;
-            playerState.stats.convertDiamondsTotal += convert;
-            updateTasksFromStats();
-            persistPlayer();
-            renderUI();
-        } else tg.showPopup({title:"Ошибка", message:"У вас нет алмазов"});
-    }
+    // Буст
+    document.getElementById('buyBoost2x').addEventListener('click', async () => {
+        const res = await fetch('/api/buy-boost', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId, multiplier:2, durationSeconds:3600}) });
+        const data = await res.json();
+        if(data.success) fetchUser();
+        else alert(data.error);
+    });
 
-    // Ежедневный бонус нефти
-    function claimDaily() {
-        let now = new Date().toDateString();
-        if(playerState.lastDaily !== now) {
-            let bonusOil = 3;
-            playerState.oil += bonusOil;
-            playerState.lastDaily = now;
-            persistPlayer();
-            renderUI();
-            tg.showPopup({title:"Бонус", message:`+${bonusOil}🛢️ нефти!`});
-        } else tg.showPopup({title:"Уже получали", message:"Бонус доступен раз в день"});
-    }
-
-    // Реферальная ссылка
-    function getReferralLink() {
-        const botUsername = tg.initDataUnsafe?.user?.username ? tg.initDataUnsafe.user.username : "MinerGameBot";
-        return `https://t.me/${botUsername}?start=${USER_ID}`;
-    }
-    function copyRefLink() { navigator.clipboard.writeText(getReferralLink()); tg.showPopup({title:"Скопировано", message:"Реферальная ссылка готова!"});}
-
-    // Время в игре (обновление каждую секунду)
-    function updatePlayTime() {
-        const now = Date.now();
-        const delta = Math.floor((now - lastTimestamp)/1000);
-        if(delta>0) { playerState.playTimeSeconds += delta; updateTasksFromStats(); persistPlayer();}
-        lastTimestamp = now;
-        setTimeout(updatePlayTime, 1000);
-    }
-
-    // Офлайн-прогресс
-    function applyOfflineProgress() {
-        let nowTime = Date.now();
-        let lastActive = playerState.lastLoginTime || nowTime;
-        let secondsOff = Math.max(0, Math.floor((nowTime - lastActive)/1000));
-        if(secondsOff>0 && secondsOff<86400) {
-            let incomeDiamonds = 0;
-            for(let i=0;i<7;i++) incomeDiamonds += playerState.miners[i] * minerBaseIncome[i];
-            let offlineDiamonds = incomeDiamonds * secondsOff;
-            let offlineOil = (playerState.oilMinerLevel * oilMinerIncome) * secondsOff;
-            playerState.diamonds += offlineDiamonds;
-            playerState.oil += offlineOil;
-            playerState.totalDiamondsMined += offlineDiamonds;
-            tg.showPopup({title:"Офлайн-прогресс", message:`За время отсутствия +${Math.floor(offlineDiamonds)}💎 и ${offlineOil.toFixed(2)}🛢️`});
+    // Вывод / пополнение нефти
+    document.getElementById('withdrawOil').addEventListener('click', async () => {
+        let amount = prompt("Сколько нефти вывести? (мин 50)");
+        if(amount && amount>=50) {
+            const res = await fetch('/api/withdraw-oil', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId, amount:parseInt(amount)}) });
+            const data = await res.json();
+            if(data.success) alert("Заявка отправлена");
+            else alert(data.error);
+        } else alert("Введите корректную сумму");
+    });
+    document.getElementById('depositOil').addEventListener('click', async () => {
+        let amount = prompt("Сколько нефти пополнить? (мин 50)");
+        if(amount && amount>=50) {
+            // Здесь в реальности должна быть оплата, для демо просто выдаём
+            const res = await fetch('/api/deposit-oil', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId, amount:parseInt(amount)}) });
+            const data = await res.json();
+            if(data.success) fetchUser();
+            else alert(data.error);
         }
-        playerState.lastLoginTime = nowTime;
-        persistPlayer();
+    });
+    document.getElementById('supportBtn').addEventListener('click', () => {
+        tg.openTelegramLink('https://t.me/nukm0');
+    });
+
+    // Топ
+    async function loadTop() {
+        const res = await fetch('/api/top');
+        const top = await res.json();
+        let html = '<ol>';
+        top.forEach(u => html += `<li>${u.uid.slice(0,6)}... 💎${u.diamonds} 🛢️${u.oil}</li>`);
+        html += '</ol>';
+        document.getElementById('topList').innerHTML = html;
     }
 
-    // Админ-панель (для ID 998579758)
-    let adminBanner = "✨ Добро пожаловать в шахту! Удерживай кнопку для фарма ✨";
-    function adminSetBanner(msg) { adminBanner = msg; renderUI(); }
-    function adminGiveResource(uid, diam, mon, oil) {
-        if(allUsersDB[uid]) {
-            let p=allUsersDB[uid];
-            p.diamonds = (p.diamonds||0)+diam;
-            p.money = (p.money||0)+mon;
-            p.oil = (p.oil||0)+oil;
-            saveAllUsers();
-            if(uid===USER_ID) loadPlayer();
-            renderUI();
-        } else tg.showPopup({title:"Ошибка", message:"Пользователь не найден"});
-    }
+    // Навигация
+    document.querySelectorAll('.nav button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+        });
+    });
 
-    // ---------- Отрисовка интерфейса ----------
-    function renderUI() {
-        const app = document.getElementById('app');
-        if(!app) return;
-        const avatarUrl = tgUser.photo_url ? tgUser.photo_url : `https://ui-avatars.com/api/?background=f39c12&color=fff&name=${encodeURIComponent(tgUser.first_name||'M')}`;
-        let timeStr = `${Math.floor(playerState.playTimeSeconds/60)}м ${playerState.playTimeSeconds%60}с`;
-        
-        let minersHtml = '';
-        for(let i=0;i<7;i++) {
-            let cost = Math.floor(minerBaseCost[i] * Math.pow(minerPriceMultiplier, playerState.miners[i]));
-            minersHtml += `<div class="miner-card" onclick="buyMiner(${i})">
-                <div>⛏️ Шахтёр Lv.${i+1}</div>
-                <div>+${minerBaseIncome[i]}💎/c | ур. ${playerState.miners[i]}</div>
-                <button>${cost}💎</button></div>`;
-        }
-        let oilCost = Math.floor(oilMinerBaseCost * Math.pow(1.4, playerState.oilMinerLevel));
-        
-        let adminHtml = '';
-        if(isAdmin) {
-            let usersShort = Object.keys(allUsersDB).slice(0,5).map(uid=>uid.substring(0,8)).join(', ');
-            adminHtml = `<div class="section admin-panel"><div class="section-title">🛠️ Админ-панель</div>
-            <div>Баннер: <input id="bannerInput" value="${adminBanner.replace(/"/g, '&quot;')}" style="width:140px;"><button onclick="adminSetBanner(document.getElementById('bannerInput').value)">Обновить</button></div>
-            <div>Ивент: <button onclick="adminGiveResource('${USER_ID}',1000,5000,5)">+1000💎 +5000💰 +5🛢️</button></div>
-            <div>Активные игроки: ${usersShort || '—'}</div>
-            </div>`;
-        }
-        
-        let tasksHtml = tasksList.map(t=>{
-            let prog = playerState.tasksProgress[t.id]||0;
-            let done = playerState.tasksCompleted[t.id];
-            let status = done ? '✅' : `${prog}/${t.target}`;
-            return `<div class="task-item"><span>${t.name}</span><span>${status}</span></div>`;
-        }).join('');
-        
-        app.innerHTML = `
-            <div class="profile-card">
-                <div class="avatar"><img src="${avatarUrl}" alt="avatar" onerror="this.src='https://ui-avatars.com/api/?background=f39c12&color=fff&name=${tgUser.first_name?.charAt(0)}'"></div>
-                <div class="user-info"><h3>${tgUser.first_name || "Шахтёр"} ${tgUser.last_name||''}</h3><p>@${tgUser.username||"miner"} | ID:${USER_ID}</p><p>⏱️ ${timeStr}</p></div>
-                <div class="profile-actions"><button class="tg-btn" onclick="tg.close()">Привязать TG</button></div>
-            </div>
-            <div class="balances">
-                <div class="balance-item">💎 ${Math.floor(playerState.diamonds)}</div>
-                <div class="balance-item">💰 ${Math.floor(playerState.money)}</div>
-                <div class="balance-item">🛢️ ${playerState.oil.toFixed(2)}</div>
-            </div>
-            <div class="mine-hold" ontouchstart="startHoldMining()" ontouchend="stopHoldMining()" onmousedown="startHoldMining()" onmouseup="stopHoldMining()" onmouseleave="stopHoldMining()">⛏️ УДЕРЖИВАЙ ДЛЯ ФАРМА ⛏️</div>
-            
-            <div class="section"><div class="section-title">⛏️ Шахтёры (7 уровней)</div><div class="miner-grid">${minersHtml}</div></div>
-            <div class="section"><div class="section-title">🛢️ Нефтяной шахтёр</div><div>Уровень: ${playerState.oilMinerLevel} | доход ${(playerState.oilMinerLevel*oilMinerIncome).toFixed(3)}🛢️/сек</div><button onclick="buyOilMiner()">Улучшить за ${oilCost}🛢️</button></div>
-            
-            <div class="section"><div class="section-title">🎁 Кейсы</div><div class="cases-grid">
-                <div class="case-card" onclick="openCase('simple')">📦 Простой<br>100💰<br>💎+💰</div>
-                <div class="case-card" onclick="openCase('medium')">📦 Средний<br>1000💰<br>шанс нефти</div>
-                <div class="case-card" onclick="openCase('premium')">🏆 Премиум<br>10🛢️<br>много ресурсов</div>
-            </div></div>
-            <div class="section"><div class="section-title">💱 Обмен</div><button onclick="convertDiamonds()">💎→💰 Конвертировать все алмазы (1:1)</button>
-            <div style="margin-top:8px"><button onclick="claimDaily()">🎁 Ежедневный бонус +3🛢️</button></div>
-            </div>
-            <div class="section"><div class="section-title">👥 Реферальная система</div><div>➕ Пригласи друга: +1000💰 новому и пригласившему!</div><div class="copy-link" onclick="copyRefLink()">🔗 Скопировать ссылку</div><div>Приглашено: ${playerState.referralCount || 0} друзей</div></div>
-            <div class="section"><div class="section-title">📋 Задания (14)</div>${tasksHtml}</div>
-            <div class="banner" id="globalBanner">${adminBanner}</div>
-            ${adminHtml}
-            <footer>⚡ Шахтёр TG Mini App | Прогресс автоматически сохраняется</footer>
-        `;
-    }
-
-    // Глобальные функции для вызова из HTML
-    window.buyMiner = buyMiner;
-    window.openCase = openCase;
-    window.startHoldMining = startHoldMining;
-    window.stopHoldMining = stopHoldMining;
-    window.buyOilMiner = buyOilMiner;
-    window.convertDiamonds = convertDiamonds;
-    window.claimDaily = claimDaily;
-    window.copyRefLink = copyRefLink;
-    window.adminSetBanner = adminSetBanner;
-    window.adminGiveResource = adminGiveResource;
-
-    // Инициализация
-    function init() {
-        loadPlayer();
-        applyOfflineProgress();
-        startPassiveIncome();
-        updatePlayTime();
-        setInterval(() => { updateTasksFromStats(); persistPlayer(); renderUI(); }, 2000);
-        renderUI();
-        tg.MainButton.hide();
-        tg.BackButton.hide();
-    }
-    init();
+    // Запуск
+    fetchUser();
+    loadTop();
+    setInterval(fetchUser, 5000); // обновление каждые 5 сек
 </script>
 </body>
 </html>
