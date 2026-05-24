@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Miner Game — Шахтёр TG Mini App</title>
-    <!-- Telegram WebApp -->
+    <!-- Telegram WebApp (подтягивает ID, ник, аватар) -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
@@ -16,14 +16,14 @@
         }
 
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+            font-family: 'Segoe UI', system-ui, -apple-system, 'Roboto', sans-serif;
             background: #0b1a2e;
             color: #f0f3f8;
             overflow-x: hidden;
             padding-bottom: 80px;
         }
 
-        /* анимированный фон: рельсы, вагонетки, алмазы */
+        /* Анимированный фон: рельсы, вагонетки, алмазы */
         .animated-mine-bg {
             position: fixed;
             top: 0;
@@ -93,7 +93,6 @@
             padding: 12px 16px 100px;
         }
 
-        /* профиль */
         .profile-card {
             background: rgba(20, 30, 45, 0.85);
             backdrop-filter: blur(8px);
@@ -110,14 +109,19 @@
         .avatar {
             width: 56px;
             height: 56px;
-            background: #2c3e50;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 32px;
             background: radial-gradient(circle at 30% 30%, #f1c40f, #e67e22);
             box-shadow: 0 0 0 2px #f39c12;
+            overflow: hidden;
+        }
+
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .user-info {
@@ -149,7 +153,6 @@
             cursor: pointer;
         }
 
-        /* балансы */
         .balances {
             display: flex;
             justify-content: space-between;
@@ -167,7 +170,6 @@
             box-shadow: inset 0 -1px 0 #2c3e4e, 0 2px 6px black;
         }
 
-        /* кнопка фарма */
         .mine-hold {
             background: radial-gradient(circle, #f39c12, #b96f0f);
             width: 100%;
@@ -188,7 +190,6 @@
             box-shadow: 0 4px 0 #7e4a0e;
         }
 
-        /* секции */
         .section {
             background: #111c28aa;
             backdrop-filter: blur(4px);
@@ -271,6 +272,8 @@
             padding: 4px 8px;
             border-radius: 40px;
             cursor: pointer;
+            display: inline-block;
+            margin-top: 6px;
         }
         footer { text-align: center; font-size: 10px; margin-top: 20px; opacity: 0.6; }
     </style>
@@ -286,12 +289,12 @@
 <div class="container" id="app"></div>
 
 <script>
-    // ---------- Инициализация Telegram ----------
+    // ---------- Инициализация Telegram (автоматическая привязка) ----------
     const tg = window.Telegram.WebApp;
     tg.ready();
     tg.expand();
 
-    // пользовательские данные из Telegram
+    // Пользовательские данные из Telegram
     let tgUser = tg.initDataUnsafe?.user || { id: 123456789, first_name: "Шахтёр", username: "miner" };
     const USER_ID = String(tgUser.id);
     const isAdmin = (USER_ID === "998579758");
@@ -313,7 +316,7 @@
         diamonds: 100,
         money: 500,
         oil: 2,
-        miners: [0,0,0,0,0,0,0],    // 7 уровней, количество купленных улучшений каждого типа
+        miners: [0,0,0,0,0,0,0],    // 7 уровней шахтёров
         oilMinerLevel: 0,
         totalDiamondsMined: 0,
         totalTasksCompleted: 0,
@@ -323,28 +326,24 @@
         lastDaily: 0,
         playTimeSeconds: 0,
         lastLoginTime: Date.now(),
-        tasksProgress: {},      // динамика заданий
+        tasksProgress: {},
         tasksCompleted: {},
-        referralBonusClaimed: false,
-        pendingReferrerBonus: 0,  // для отложенного бонуса пригласившему
-        stats: { casesOpened: { simple:0, medium:0, premium:0 } }
+        stats: { casesOpened: { simple:0, medium:0, premium:0 }, convertDiamondsTotal: 0 },
     };
 
-    // Цены и генерация шахтеров (7 типов)
+    // Цены и доход шахтёров (7 типов)
     const minerBaseCost = [30, 150, 500, 1500, 5000, 20000, 75000];
     const minerBaseIncome = [1, 3, 8, 25, 80, 250, 800];  // алмазов/сек за 1 уровень
     const minerPriceMultiplier = 1.55;
-    // Нефтяной шахтер: дает нефть/час (0.02 в сек) + растёт цена
-    let oilMinerBaseCost = 5;  // нефти
-    let oilMinerIncome = 0.012; // нефти в секунду за уровень
+    let oilMinerBaseCost = 5;        // нефти за покупку
+    let oilMinerIncome = 0.012;      // нефти в секунду за уровень
 
-    // текущий игрок (state)
     let playerState = { ...defaultPlayerState, tasksProgress: {}, tasksCompleted: {} };
-    let activeTimers = null;
     let holdInterval = null;
     let lastTimestamp = Date.now();
+    let passiveInterval = null;
 
-    // 14 заданий
+    // ---------- 14 заданий ----------
     const tasksList = [
         { id:0, name:"Добыть 500 💎", target:500, type:"diamonds_mined", reward:{diamonds:50,money:200,oil:0} },
         { id:1, name:"Добыть 3000 💎", target:3000, type:"diamonds_mined", reward:{diamonds:200,money:800,oil:1} },
@@ -363,12 +362,12 @@
     ];
 
     function initTasksProgress() {
-        let prog = playerState.tasksProgress;
-        tasksList.forEach(t => { if(prog[t.id]===undefined) prog[t.id]=0; });
-        if(!playerState.tasksCompleted) playerState.tasksCompleted={};
+        if(!playerState.tasksProgress) playerState.tasksProgress = {};
+        tasksList.forEach(t => { if(playerState.tasksProgress[t.id]===undefined) playerState.tasksProgress[t.id]=0; });
+        if(!playerState.tasksCompleted) playerState.tasksCompleted = {};
     }
 
-    // Вспомогательные функции сохранения
+    // Сохранение текущего игрока
     function persistPlayer() {
         if(!playerState) return;
         allUsersDB[USER_ID] = JSON.parse(JSON.stringify(playerState));
@@ -376,59 +375,7 @@
         localStorage.setItem(`miner_last_${USER_ID}`, JSON.stringify(playerState));
     }
 
-    function loadPlayer() {
-        loadAllUsers();
-        if(allUsersDB[USER_ID]) {
-            playerState = JSON.parse(JSON.stringify(allUsersDB[USER_ID]));
-        } else {
-            let saved = localStorage.getItem(`miner_last_${USER_ID}`);
-            if(saved) playerState = JSON.parse(saved);
-            else {
-                playerState = JSON.parse(JSON.stringify(defaultPlayerState));
-                playerState.tasksProgress = {};
-                playerState.tasksCompleted = {};
-                // реферальная логика при первом запуске
-                const urlParams = new URLSearchParams(window.location.search);
-                const startParam = tg.initDataUnsafe?.start_param || urlParams.get('ref');
-                if(startParam && startParam !== USER_ID) {
-                    playerState.invitedBy = startParam;
-                    // награда новому +1000 денег
-                    playerState.money += 1000;
-                    // Запись плюшки пригласившему (отложенный бонус)
-                    let inviterData = allUsersDB[startParam];
-                    if(inviterData) {
-                        inviterData.pendingReferrerBonus = (inviterData.pendingReferrerBonus || 0) + 1000;
-                        allUsersDB[startParam] = inviterData;
-                        saveAllUsers();
-                    } else {
-                        // создаем временную запись для бонуса при загрузке пригласившего
-                        let pendingInviteBonus = localStorage.getItem(`pending_bonus_${startParam}`);
-                        let newBonus = (pendingInviteBonus ? parseInt(pendingInviteBonus) : 0) + 1000;
-                        localStorage.setItem(`pending_bonus_${startParam}`, newBonus);
-                    }
-                }
-            }
-        }
-        // Проверить отложенный бонус для текущего игрока
-        let pendingBonus = localStorage.getItem(`pending_bonus_${USER_ID}`);
-        if(pendingBonus) {
-            playerState.money += parseInt(pendingBonus);
-            localStorage.removeItem(`pending_bonus_${USER_ID}`);
-        }
-        if(playerState.pendingReferrerBonus) {
-            playerState.money += playerState.pendingReferrerBonus;
-            playerState.pendingReferrerBonus = 0;
-        }
-        if(!playerState.miners || playerState.miners.length !== 7) playerState.miners = [0,0,0,0,0,0,0];
-        if(playerState.oilMinerLevel === undefined) playerState.oilMinerLevel = 0;
-        if(!playerState.stats) playerState.stats = { casesOpened: { simple:0, medium:0, premium:0 } };
-        if(!playerState.referredUsers) playerState.referredUsers = [];
-        if(!playerState.referralCount) playerState.referralCount = playerState.referredUsers.length;
-        initTasksProgress();
-        updateTasksFromStats();
-        persistPlayer();
-    }
-
+    // Обновление прогресса заданий
     function updateTasksFromStats() {
         let prog = playerState.tasksProgress;
         if(!prog) return;
@@ -442,7 +389,7 @@
         prog[7] = playerState.oilMinerLevel;
         prog[8] = playerState.referralCount;
         prog[9] = playerState.referralCount;
-        prog[10] = (playerState.stats.convertDiamondsTotal || 0);
+        prog[10] = playerState.stats.convertDiamondsTotal || 0;
         prog[11] = playerState.playTimeSeconds;
         prog[12] = playerState.totalTasksCompleted;
         prog[13] = playerState.oil;
@@ -457,7 +404,6 @@
                 let current = playerState.tasksProgress[task.id];
                 if(current >= task.target) {
                     completed[task.id] = true;
-                    // выдача награды
                     playerState.diamonds += task.reward.diamonds;
                     playerState.money += task.reward.money;
                     playerState.oil += task.reward.oil;
@@ -471,15 +417,71 @@
         if(updated) { updateTasksFromStats(); persistPlayer(); renderUI(); }
     }
 
-    // Пассивный доход
-    let passiveInterval;
+    // Загрузка игрока с учётом реферальной системы
+    function loadPlayer() {
+        loadAllUsers();
+        if(allUsersDB[USER_ID]) {
+            playerState = JSON.parse(JSON.stringify(allUsersDB[USER_ID]));
+        } else {
+            let saved = localStorage.getItem(`miner_last_${USER_ID}`);
+            if(saved) playerState = JSON.parse(saved);
+            else {
+                playerState = JSON.parse(JSON.stringify(defaultPlayerState));
+                playerState.tasksProgress = {};
+                playerState.tasksCompleted = {};
+                // Реферальная логика: если есть ref параметр
+                const urlParams = new URLSearchParams(window.location.search);
+                const startParam = tg.initDataUnsafe?.start_param || urlParams.get('ref');
+                if(startParam && startParam !== USER_ID) {
+                    playerState.invitedBy = startParam;
+                    playerState.money += 1000;  // новому бонус 1000
+                    // награда пригласившему (отложенный бонус)
+                    let inviterData = allUsersDB[startParam];
+                    if(inviterData) {
+                        inviterData.money = (inviterData.money || 0) + 1000;
+                        inviterData.referralCount = (inviterData.referralCount || 0) + 1;
+                        if(!inviterData.referredUsers) inviterData.referredUsers = [];
+                        inviterData.referredUsers.push(USER_ID);
+                        allUsersDB[startParam] = inviterData;
+                        saveAllUsers();
+                    } else {
+                        let pending = localStorage.getItem(`pending_bonus_${startParam}`);
+                        let newBonus = (pending ? parseInt(pending) : 0) + 1000;
+                        localStorage.setItem(`pending_bonus_${startParam}`, newBonus);
+                        // также увеличим счетчик рефералов при следующем входе
+                        let pendingRefCount = localStorage.getItem(`pending_refcount_${startParam}`);
+                        localStorage.setItem(`pending_refcount_${startParam}`, (pendingRefCount?parseInt(pendingRefCount):0)+1);
+                    }
+                }
+            }
+        }
+        // Применить отложенный бонус для текущего игрока
+        let pendingBonus = localStorage.getItem(`pending_bonus_${USER_ID}`);
+        if(pendingBonus) {
+            playerState.money += parseInt(pendingBonus);
+            localStorage.removeItem(`pending_bonus_${USER_ID}`);
+        }
+        let pendingRefInc = localStorage.getItem(`pending_refcount_${USER_ID}`);
+        if(pendingRefInc) {
+            playerState.referralCount = (playerState.referralCount || 0) + parseInt(pendingRefInc);
+            localStorage.removeItem(`pending_refcount_${USER_ID}`);
+        }
+        if(!playerState.miners || playerState.miners.length !== 7) playerState.miners = [0,0,0,0,0,0,0];
+        if(playerState.oilMinerLevel === undefined) playerState.oilMinerLevel = 0;
+        if(!playerState.stats) playerState.stats = { casesOpened: { simple:0, medium:0, premium:0 }, convertDiamondsTotal:0 };
+        if(!playerState.referredUsers) playerState.referredUsers = [];
+        if(!playerState.referralCount) playerState.referralCount = playerState.referredUsers.length;
+        initTasksProgress();
+        updateTasksFromStats();
+        persistPlayer();
+    }
+
+    // Пассивный доход (раз в секунду)
     function startPassiveIncome() {
         if(passiveInterval) clearInterval(passiveInterval);
         passiveInterval = setInterval(() => {
             let incomeDiamonds = 0;
-            for(let i=0; i<7; i++) {
-                incomeDiamonds += playerState.miners[i] * minerBaseIncome[i];
-            }
+            for(let i=0; i<7; i++) incomeDiamonds += playerState.miners[i] * minerBaseIncome[i];
             let oilIncome = playerState.oilMinerLevel * oilMinerIncome;
             playerState.diamonds += incomeDiamonds;
             playerState.oil = Math.max(0, playerState.oil + oilIncome);
@@ -490,7 +492,7 @@
         }, 1000);
     }
 
-    // Удержание фарма
+    // Удержание для фарма
     function startHoldMining() {
         if(holdInterval) clearInterval(holdInterval);
         holdInterval = setInterval(() => {
@@ -526,6 +528,7 @@
             renderUI();
         } else tg.showPopup({title:"Мало нефти", message:`Нужно ${cost}🛢️`});
     }
+
     // Кейсы
     function openCase(type) {
         let costMoney=0, costOil=0;
@@ -549,10 +552,10 @@
         renderUI();
         tg.showPopup({title:"Кейс открыт!", message:`+${diamondReward}💎 +${moneyReward}💰 +${oilReward}🛢️`});
     }
-    // Конвертация
+
+    // Конвертация алмазов в деньги (1:1)
     function convertDiamonds() {
-        let rate = 1;
-        if(playerState.diamonds>=10) {
+        if(playerState.diamonds >= 1) {
             let convert = Math.floor(playerState.diamonds);
             let gain = convert;
             playerState.money += gain;
@@ -562,9 +565,10 @@
             updateTasksFromStats();
             persistPlayer();
             renderUI();
-        } else tg.showPopup({title:"Ошибка", message:"У вас мало алмазов"});
+        } else tg.showPopup({title:"Ошибка", message:"У вас нет алмазов"});
     }
-    // Ежедневный бонус (нефть)
+
+    // Ежедневный бонус нефти
     function claimDaily() {
         let now = new Date().toDateString();
         if(playerState.lastDaily !== now) {
@@ -573,17 +577,18 @@
             playerState.lastDaily = now;
             persistPlayer();
             renderUI();
-            tg.showPopup({title:"Бонус", message:`+${bonusOil}🛢️ нефти! Заходите завтра`});
-        } else tg.showPopup({title:"Уже получали", message:"Бонус можно брать раз в день"});
+            tg.showPopup({title:"Бонус", message:`+${bonusOil}🛢️ нефти!`});
+        } else tg.showPopup({title:"Уже получали", message:"Бонус доступен раз в день"});
     }
-    // реф ссылка
+
+    // Реферальная ссылка
     function getReferralLink() {
-        const link = `https://t.me/${tg.initDataUnsafe?.user?.username ? tg.initDataUnsafe.user.username : "MinerGameBot"}?start=${USER_ID}`;
-        return link;
+        const botUsername = tg.initDataUnsafe?.user?.username ? tg.initDataUnsafe.user.username : "MinerGameBot";
+        return `https://t.me/${botUsername}?start=${USER_ID}`;
     }
     function copyRefLink() { navigator.clipboard.writeText(getReferralLink()); tg.showPopup({title:"Скопировано", message:"Реферальная ссылка готова!"});}
 
-    // время в игре
+    // Время в игре (обновление каждую секунду)
     function updatePlayTime() {
         const now = Date.now();
         const delta = Math.floor((now - lastTimestamp)/1000);
@@ -592,75 +597,7 @@
         setTimeout(updatePlayTime, 1000);
     }
 
-    // Админ панель
-    let adminBanner = "Добро пожаловать в шахту!";
-    function adminSetBanner(msg) { adminBanner = msg; renderUI(); }
-    function adminGiveResource(uid, diam, mon, oil) { if(allUsersDB[uid]) { let p=allUsersDB[uid]; p.diamonds+=diam; p.money+=mon; p.oil+=oil; saveAllUsers(); if(uid===USER_ID) loadPlayer(); renderUI(); }}
-
-    // Рендер UI
-    function renderUI() {
-        const app = document.getElementById('app');
-        if(!app) return;
-        const avatarUrl = tgUser.photo_url ? tgUser.photo_url : `https://ui-avatars.com/api/?background=f39c12&color=fff&name=${encodeURIComponent(tgUser.first_name||'M')}`;
-        let timeStr = `${Math.floor(playerState.playTimeSeconds/60)}m ${playerState.playTimeSeconds%60}s`;
-        let minersHtml = '';
-        for(let i=0;i<7;i++) {
-            let cost = Math.floor(minerBaseCost[i] * Math.pow(minerPriceMultiplier, playerState.miners[i]));
-            minersHtml += `<div class="miner-card" onclick="buyMiner(${i})">
-                <div>⛏️ Шахтёр Lv.${i+1}</div>
-                <div>+${minerBaseIncome[i]}💎/c | lvl ${playerState.miners[i]}</div>
-                <button>${cost}💎</button></div>`;
-        }
-        let oilCost = Math.floor(oilMinerBaseCost * Math.pow(1.4, playerState.oilMinerLevel));
-        let adminHtml = '';
-        if(isAdmin) {
-            let usersList = Object.keys(allUsersDB).slice(0,6).map(uid=>`${uid.substr(0,8)}...`).join(', ');
-            adminHtml = `<div class="section admin-panel"><div class="section-title">🛠️ Админ-панель</div>
-            <div>Баннер: <input id="bannerInput" value="${adminBanner}"><button onclick="adminSetBanner(document.getElementById('bannerInput').value)">Установить</button></div>
-            <div>Ивент: <button onclick="adminGiveResource('${USER_ID}',1000,5000,5)">+1000💎+5000💰+5🛢️ себе</button></div>
-            <div>Список юзеров: ${usersList || 'нет'}</div>
-            </div>`;
-        }
-        let tasksHtml = tasksList.map(t=>{
-            let prog = playerState.tasksProgress[t.id]||0;
-            let done = playerState.tasksCompleted[t.id];
-            let status = done ? '✅' : `${prog}/${t.target}`;
-            return `<div class="task-item"><span>${t.name}</span><span>${status}</span></div>`;
-        }).join('');
-        app.innerHTML = `
-            <div class="profile-card">
-                <div class="avatar"><img src="${avatarUrl}" style="width:52px;height:52px;border-radius:50%;object-fit:cover" onerror="this.src='https://ui-avatars.com/api/?background=f39c12&color=fff&name=${tgUser.first_name?.charAt(0)}'"></div>
-                <div class="user-info"><h3>${tgUser.first_name || "Шахтёр"} ${tgUser.last_name||''}</h3><p>@${tgUser.username||"miner"} | ID:${USER_ID}</p><p>⏱️ ${timeStr}</p></div>
-                <div class="profile-actions"><button class="tg-btn" onclick="document.location.reload()">Привязать TG</button></div>
-            </div>
-            <div class="balances">
-                <div class="balance-item">💎 ${Math.floor(playerState.diamonds)}</div>
-                <div class="balance-item">💰 ${Math.floor(playerState.money)}</div>
-                <div class="balance-item">🛢️ ${playerState.oil.toFixed(2)}</div>
-            </div>
-            <div class="mine-hold" ontouchstart="startHoldMining()" ontouchend="stopHoldMining()" onmousedown="startHoldMining()" onmouseup="stopHoldMining()" onmouseleave="stopHoldMining()">⛏️ УДЕРЖИВАЙ ДЛЯ ФАРМА ⛏️</div>
-            
-            <div class="section"><div class="section-title">⛏️ Шахтёры (7 уровней)</div><div class="miner-grid">${minersHtml}</div></div>
-            <div class="section"><div class="section-title">🛢️ Нефтяной шахтёр 🛢️</div><div>Уровень: ${playerState.oilMinerLevel} | доход ${(playerState.oilMinerLevel*oilMinerIncome).toFixed(3)}🛢️/сек</div><button onclick="buyOilMiner()">Улучшить за ${oilCost}🛢️</button></div>
-            
-            <div class="section"><div class="section-title">🎁 Кейсы</div><div class="cases-grid">
-                <div class="case-card" onclick="openCase('simple')">📦 Простой<br>100💰<br>случайные 💎💰</div>
-                <div class="case-card" onclick="openCase('medium')">📦 Средний<br>1000💰<br>шанс на нефть</div>
-                <div class="case-card" onclick="openCase('premium')">🏆 Премиум<br>10🛢️<br>много ресурсов</div>
-            </div></div>
-            <div class="section"><div class="section-title">💱 Обмен</div><button onclick="convertDiamonds()">💎→💰 Конвертировать все алмазы (1:1)</button>
-            <div style="margin-top:8px"><button onclick="claimDaily()">🎁 Ежедневный бонус +3🛢️</button></div>
-            </div>
-            <div class="section"><div class="section-title">👥 Рефералы</div><div>Приведи друга: +1000💰 новому и тебе!</div><div class="copy-link" onclick="copyRefLink()">🔗 Скопировать ссылку</div><div>Приглашено: ${playerState.referralCount} друзей</div></div>
-            <div class="section"><div class="section-title">📋 Задания (14)</div>${tasksHtml}</div>
-            <div class="profile-actions" style="gap:12px; justify-content:center; margin-top:8px"><button onclick="tg.close()">Закрыть</button></div>
-            <div class="banner" id="globalBanner">${adminBanner}</div>
-            ${adminHtml}
-            <footer>Шахтёр TG Mini App | Прогресс автосохранение</footer>
-        `;
-    }
-
-    // офлайн прогресс по времени
+    // Офлайн-прогресс
     function applyOfflineProgress() {
         let nowTime = Date.now();
         let lastActive = playerState.lastLoginTime || nowTime;
@@ -679,6 +616,88 @@
         persistPlayer();
     }
 
+    // Админ-панель (для ID 998579758)
+    let adminBanner = "✨ Добро пожаловать в шахту! Удерживай кнопку для фарма ✨";
+    function adminSetBanner(msg) { adminBanner = msg; renderUI(); }
+    function adminGiveResource(uid, diam, mon, oil) {
+        if(allUsersDB[uid]) {
+            let p=allUsersDB[uid];
+            p.diamonds = (p.diamonds||0)+diam;
+            p.money = (p.money||0)+mon;
+            p.oil = (p.oil||0)+oil;
+            saveAllUsers();
+            if(uid===USER_ID) loadPlayer();
+            renderUI();
+        } else tg.showPopup({title:"Ошибка", message:"Пользователь не найден"});
+    }
+
+    // ---------- Отрисовка интерфейса ----------
+    function renderUI() {
+        const app = document.getElementById('app');
+        if(!app) return;
+        const avatarUrl = tgUser.photo_url ? tgUser.photo_url : `https://ui-avatars.com/api/?background=f39c12&color=fff&name=${encodeURIComponent(tgUser.first_name||'M')}`;
+        let timeStr = `${Math.floor(playerState.playTimeSeconds/60)}м ${playerState.playTimeSeconds%60}с`;
+        
+        let minersHtml = '';
+        for(let i=0;i<7;i++) {
+            let cost = Math.floor(minerBaseCost[i] * Math.pow(minerPriceMultiplier, playerState.miners[i]));
+            minersHtml += `<div class="miner-card" onclick="buyMiner(${i})">
+                <div>⛏️ Шахтёр Lv.${i+1}</div>
+                <div>+${minerBaseIncome[i]}💎/c | ур. ${playerState.miners[i]}</div>
+                <button>${cost}💎</button></div>`;
+        }
+        let oilCost = Math.floor(oilMinerBaseCost * Math.pow(1.4, playerState.oilMinerLevel));
+        
+        let adminHtml = '';
+        if(isAdmin) {
+            let usersShort = Object.keys(allUsersDB).slice(0,5).map(uid=>uid.substring(0,8)).join(', ');
+            adminHtml = `<div class="section admin-panel"><div class="section-title">🛠️ Админ-панель</div>
+            <div>Баннер: <input id="bannerInput" value="${adminBanner.replace(/"/g, '&quot;')}" style="width:140px;"><button onclick="adminSetBanner(document.getElementById('bannerInput').value)">Обновить</button></div>
+            <div>Ивент: <button onclick="adminGiveResource('${USER_ID}',1000,5000,5)">+1000💎 +5000💰 +5🛢️</button></div>
+            <div>Активные игроки: ${usersShort || '—'}</div>
+            </div>`;
+        }
+        
+        let tasksHtml = tasksList.map(t=>{
+            let prog = playerState.tasksProgress[t.id]||0;
+            let done = playerState.tasksCompleted[t.id];
+            let status = done ? '✅' : `${prog}/${t.target}`;
+            return `<div class="task-item"><span>${t.name}</span><span>${status}</span></div>`;
+        }).join('');
+        
+        app.innerHTML = `
+            <div class="profile-card">
+                <div class="avatar"><img src="${avatarUrl}" alt="avatar" onerror="this.src='https://ui-avatars.com/api/?background=f39c12&color=fff&name=${tgUser.first_name?.charAt(0)}'"></div>
+                <div class="user-info"><h3>${tgUser.first_name || "Шахтёр"} ${tgUser.last_name||''}</h3><p>@${tgUser.username||"miner"} | ID:${USER_ID}</p><p>⏱️ ${timeStr}</p></div>
+                <div class="profile-actions"><button class="tg-btn" onclick="tg.close()">Привязать TG</button></div>
+            </div>
+            <div class="balances">
+                <div class="balance-item">💎 ${Math.floor(playerState.diamonds)}</div>
+                <div class="balance-item">💰 ${Math.floor(playerState.money)}</div>
+                <div class="balance-item">🛢️ ${playerState.oil.toFixed(2)}</div>
+            </div>
+            <div class="mine-hold" ontouchstart="startHoldMining()" ontouchend="stopHoldMining()" onmousedown="startHoldMining()" onmouseup="stopHoldMining()" onmouseleave="stopHoldMining()">⛏️ УДЕРЖИВАЙ ДЛЯ ФАРМА ⛏️</div>
+            
+            <div class="section"><div class="section-title">⛏️ Шахтёры (7 уровней)</div><div class="miner-grid">${minersHtml}</div></div>
+            <div class="section"><div class="section-title">🛢️ Нефтяной шахтёр</div><div>Уровень: ${playerState.oilMinerLevel} | доход ${(playerState.oilMinerLevel*oilMinerIncome).toFixed(3)}🛢️/сек</div><button onclick="buyOilMiner()">Улучшить за ${oilCost}🛢️</button></div>
+            
+            <div class="section"><div class="section-title">🎁 Кейсы</div><div class="cases-grid">
+                <div class="case-card" onclick="openCase('simple')">📦 Простой<br>100💰<br>💎+💰</div>
+                <div class="case-card" onclick="openCase('medium')">📦 Средний<br>1000💰<br>шанс нефти</div>
+                <div class="case-card" onclick="openCase('premium')">🏆 Премиум<br>10🛢️<br>много ресурсов</div>
+            </div></div>
+            <div class="section"><div class="section-title">💱 Обмен</div><button onclick="convertDiamonds()">💎→💰 Конвертировать все алмазы (1:1)</button>
+            <div style="margin-top:8px"><button onclick="claimDaily()">🎁 Ежедневный бонус +3🛢️</button></div>
+            </div>
+            <div class="section"><div class="section-title">👥 Реферальная система</div><div>➕ Пригласи друга: +1000💰 новому и пригласившему!</div><div class="copy-link" onclick="copyRefLink()">🔗 Скопировать ссылку</div><div>Приглашено: ${playerState.referralCount || 0} друзей</div></div>
+            <div class="section"><div class="section-title">📋 Задания (14)</div>${tasksHtml}</div>
+            <div class="banner" id="globalBanner">${adminBanner}</div>
+            ${adminHtml}
+            <footer>⚡ Шахтёр TG Mini App | Прогресс автоматически сохраняется</footer>
+        `;
+    }
+
+    // Глобальные функции для вызова из HTML
     window.buyMiner = buyMiner;
     window.openCase = openCase;
     window.startHoldMining = startHoldMining;
@@ -690,6 +709,7 @@
     window.adminSetBanner = adminSetBanner;
     window.adminGiveResource = adminGiveResource;
 
+    // Инициализация
     function init() {
         loadPlayer();
         applyOfflineProgress();
