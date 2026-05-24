@@ -2,44 +2,243 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Шахтёр — добывай ресурсы</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <title>Шахтёр — добывай богатства</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * { box-sizing: border-box; user-select: none; }
-        body { font-family: system-ui, sans-serif; background: #1e1e2f; color: #fff; margin: 0; padding: 16px; }
-        .container { max-width: 500px; margin: 0 auto; }
-        .card { background: #2a2a3b; border-radius: 20px; padding: 16px; margin-bottom: 12px; }
-        .flex { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-        .balance { font-size: 20px; font-weight: bold; }
-        .balance span { font-size: 14px; color: #aaa; }
-        button { background: #ffb347; border: none; border-radius: 40px; padding: 10px 20px; font-weight: bold; color: #1e1e2f; cursor: pointer; }
-        button:active { transform: scale(0.97); }
-        .click-area { background: #3b3b4f; border-radius: 100px; text-align: center; padding: 30px; font-size: 48px; cursor: pointer; transition: 0.1s; }
-        .click-area:active { transform: scale(0.95); }
-        .nav { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 16px; }
-        .nav button { flex: 1; background: #3a3a4e; color: white; }
-        .active-tab { background: #ffb347; color: black; }
-        .section { display: none; }
-        .section.active { display: block; }
-        .miner-item { margin-bottom: 12px; background: #252535; border-radius: 16px; padding: 10px; }
-        .price { color: #ffd966; }
-        .error { color: #ff8888; }
-        .success { color: #88ff88; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: linear-gradient(145deg, #0a0f1e 0%, #0c1222 100%);
+            font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+            color: #ffffff;
+            padding: 16px;
+            min-height: 100vh;
+        }
+
+        /* Контейнер */
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* Карточки */
+        .card {
+            background: rgba(18, 25, 45, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 28px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255, 215, 0, 0.15);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:active {
+            transform: scale(0.98);
+        }
+
+        /* Балансовая панель */
+        .balance-panel {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .balance-item {
+            background: linear-gradient(135deg, #1e2a3a, #0f172a);
+            border-radius: 60px;
+            padding: 10px 18px;
+            flex: 1;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 200, 100, 0.3);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .balance-item span:first-child {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            display: block;
+        }
+        .balance-item span:last-child {
+            font-size: 1.4rem;
+            font-weight: 800;
+        }
+
+        /* Кликер */
+        .click-area {
+            background: radial-gradient(circle at 30% 20%, #ffb347, #ff8c00);
+            border-radius: 120px;
+            text-align: center;
+            padding: 35px 20px;
+            font-size: 3.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.05s linear;
+            box-shadow: 0 15px 25px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.3);
+            color: #1e1e2f;
+            text-shadow: 0 1px 2px rgba(255,255,200,0.8);
+            margin-bottom: 16px;
+        }
+        .click-area:active {
+            transform: scale(0.96);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.4);
+        }
+
+        /* Навигация */
+        .nav {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            scrollbar-width: thin;
+            padding-bottom: 4px;
+        }
+        .nav button {
+            background: rgba(30, 40, 60, 0.8);
+            border: none;
+            padding: 12px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #ddd;
+            backdrop-filter: blur(4px);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .nav button.active-tab {
+            background: linear-gradient(95deg, #ffb347, #ff8c00);
+            color: #0a0f1e;
+            box-shadow: 0 2px 8px rgba(255,140,0,0.4);
+        }
+
+        /* Секции */
+        .section {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        .section.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+
+        /* Кнопки */
+        button {
+            background: linear-gradient(95deg, #ffb347, #ff8c00);
+            border: none;
+            border-radius: 60px;
+            padding: 12px 20px;
+            font-weight: bold;
+            color: #1e1e2f;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        button:active {
+            transform: scale(0.96);
+            opacity: 0.9;
+        }
+        button.secondary {
+            background: linear-gradient(95deg, #3a4a6e, #2a3a5e);
+            color: white;
+        }
+        input {
+            background: #1e2a3a;
+            border: 1px solid #ffb34780;
+            border-radius: 60px;
+            padding: 12px 16px;
+            color: white;
+            font-size: 1rem;
+            width: 100%;
+            margin: 8px 0;
+            outline: none;
+        }
+
+        /* Шахтёры */
+        .miner-item {
+            background: rgba(0,0,0,0.3);
+            border-radius: 24px;
+            padding: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            border-left: 4px solid #ffb347;
+        }
+        .miner-info {
+            flex: 2;
+        }
+        .miner-level {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .miner-stats {
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+
+        /* Заголовки */
+        h3 {
+            margin-bottom: 12px;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        hr {
+            border-color: #ffb34740;
+            margin: 12px 0;
+        }
+
+        /* Топ игроков */
+        .top-list {
+            background: #0f1422;
+            border-radius: 20px;
+            padding: 8px;
+        }
+        .top-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-bottom: 1px solid #2a3a5e;
+        }
     </style>
 </head>
 <body>
 <div class="container">
-    <div class="card flex">
-        <div>💎 <span id="diamonds">0</span></div>
-        <div>💰 <span id="gold">0</span></div>
-        <div>🛢️ <span id="oil">0</span></div>
+    <!-- Баланс -->
+    <div class="balance-panel">
+        <div class="balance-item">💎 <span id="diamonds">0</span></div>
+        <div class="balance-item">💰 <span id="gold">0</span></div>
+        <div class="balance-item">🛢️ <span id="oil">0</span></div>
     </div>
-    <div class="card click-area" id="clickArea">
-        ⛏️ КЛИК
-    </div>
-    <div class="card">📈 Доход в сек: <span id="incomePerSec">0</span> 💎</div>
 
+    <!-- Кликер -->
+    <div class="click-area" id="clickArea">
+        ⛏️ КЛИК!
+    </div>
+
+    <!-- Доход в секунду -->
+    <div class="card" style="text-align: center; font-size: 0.9rem;">
+        📈 Доход в секунду: <strong id="incomePerSec">0</strong> 💎
+    </div>
+
+    <!-- Навигация -->
     <div class="nav">
         <button data-tab="mines">⛏️ Шахты</button>
         <button data-tab="shop">🛒 Магазин</button>
@@ -47,51 +246,62 @@
         <button data-tab="profile">👤 Профиль</button>
     </div>
 
-    <!-- Вкладка Шахты -->
+    <!-- Шахты -->
     <div id="mines" class="section active">
         <div class="card">
-            <div class="flex"><span>🏭 Уровень шахты: <span id="mineLevel">1</span></span><button id="upgradeMine">Улучшить (золото)</button></div>
-            <div>⛏️ Кирка ур. <span id="pickaxeLevel">1</span> <button id="upgradePickaxe">Улучшить (💎)</button></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                <div><span style="font-size: 1.2rem;">🏭 Шахта ур. </span><strong id="mineLevel">1</strong></div>
+                <button id="upgradeMine">Улучшить (💰 золото)</button>
+            </div>
+            <div style="margin-top: 12px; display: flex; justify-content: space-between;">
+                <div>⛏️ Кирка ур. <strong id="pickaxeLevel">1</strong></div>
+                <button id="upgradePickaxe">Улучшить (💎 алмазы)</button>
+            </div>
         </div>
         <div id="minersList"></div>
     </div>
 
-    <!-- Вкладка Магазин -->
+    <!-- Магазин -->
     <div id="shop" class="section">
         <div class="card">
-            <h3>📦 Боксы</h3>
-            <button id="openCommonBox">Открыть обычный бокс (100💎)</button>
-            <button id="openRareBox">Открыть редкий бокс (1000💎)</button>
-            <button id="openDonatBox">Открыть донатный бокс (200🛢️)</button>
+            <h3>📦 Кейсы</h3>
+            <button id="openCommonBox" style="width: 100%; margin-bottom: 8px;">🔮 Обычный кейс (100💰 золота)</button>
+            <button id="openRareBox" style="width: 100%; margin-bottom: 8px;">✨ Редкий кейс (1000💰 золота)</button>
+            <button id="openDonatBox" style="width: 100%;">💎 Донатный кейс (200🛢️ нефти)</button>
         </div>
         <div class="card">
-            <h3>💱 Обмен</h3>
-            <input type="number" id="exchangeAmount" placeholder="Алмазы">
+            <h3>💱 Обмен валют</h3>
+            <input type="number" id="exchangeAmount" placeholder="Количество алмазов">
             <button id="exchangeBtn">Обменять на золото (1 алмаз = 0.1 золота)</button>
         </div>
         <div class="card">
-            <h3>⚡ Буст</h3>
-            <button id="buyBoost2x">Купить x2 на 1 час (1000 золота)</button>
+            <h3>⚡ Буст дохода x2</h3>
+            <button id="buyBoost2x">Активировать x2 на 1 час (1000💰 золота)</button>
         </div>
     </div>
 
-    <!-- Вкладка Задания (заглушка) -->
+    <!-- Задания (заглушка, можно расширить) -->
     <div id="tasks" class="section">
-        <div class="card">📌 Задания будут доступны после админ-ивентов</div>
+        <div class="card">
+            <h3>📌 Активные задания</h3>
+            <p>Следите за ивентами от администрации!</p>
+            <p>🏆 Скоро появятся уникальные квесты.</p>
+        </div>
     </div>
 
-    <!-- Вкладка Профиль -->
+    <!-- Профиль -->
     <div id="profile" class="section">
         <div class="card">
-            <p>⏱️ Время в игре: <span id="timePlayed">0</span> сек</p>
-            <button id="withdrawOil">Вывести нефть (от 50🛢️)</button>
-            <button id="depositOil">Пополнить нефть (от 50🛢️)</button>
+            <h3>👤 Личный кабинет</h3>
+            <p>⏱️ Время в игре: <strong id="timePlayed">0</strong> сек</p>
+            <button id="withdrawOil" style="background: #2e7d64;">⬇️ Вывести нефть (от 50🛢️)</button>
+            <button id="depositOil" style="background: #2e5e7d; margin-top: 8px;">⬆️ Пополнить нефть (от 50🛢️)</button>
             <hr>
-            <button id="supportBtn">📞 Поддержка</button>
+            <button id="supportBtn" class="secondary">📞 Поддержка @nukm0</button>
         </div>
         <div class="card">
-            <h3>🏆 Топ игроков</h3>
-            <div id="topList"></div>
+            <h3>🏆 Топ-10 шахтёров</h3>
+            <div id="topList" class="top-list">Загрузка...</div>
         </div>
     </div>
 </div>
@@ -99,22 +309,24 @@
 <script>
     let tg = window.Telegram.WebApp;
     tg.expand();
-    let initDataUnsafe = tg.initDataUnsafe;
-    let userId = initDataUnsafe.user?.id;
+    let userId = tg.initDataUnsafe?.user?.id;
     if (!userId) {
         alert("Запустите приложение через Telegram");
-        userId = "test123"; // для теста
+        userId = "test" + Math.floor(Math.random() * 10000);
     }
 
     let currentUser = {};
     let clickInterval = null;
 
+    // Функция запроса пользователя
     async function fetchUser() {
-        const res = await fetch(`/api/user/${userId}`);
-        const data = await res.json();
-        if (data.banned) return alert("Вы забанены");
-        currentUser = data;
-        updateUI();
+        try {
+            const res = await fetch(`/api/user/${userId}`);
+            const data = await res.json();
+            if (data.banned) return alert("Вы забанены в игре");
+            currentUser = data;
+            updateUI();
+        } catch(e) { console.error(e); }
     }
 
     function updateUI() {
@@ -128,140 +340,203 @@
         renderMiners();
     }
 
+    // Рендер шахтёров
+    const MINER_BASE_PRICE = [0,100,200,350,550,800,1100,1500];
+    const MINER_INCOME_BASE = [0,5,10,20,35,55,80,120];
+
+    function getMinerPrice(level, count) {
+        let base = MINER_BASE_PRICE[level];
+        return Math.floor(base * Math.pow(1.35, count - 1));
+    }
+
     function renderMiners() {
         const container = document.getElementById('minersList');
+        if (!container) return;
         container.innerHTML = '';
-        for (let lvl=1; lvl<=7; lvl++) {
-            const count = currentUser.miners[lvl] || 0;
-            const nextPrice = getMinerPrice(lvl, count+1);
+        for (let lvl = 1; lvl <= 7; lvl++) {
+            const count = currentUser.miners?.[lvl] || 0;
+            const price = getMinerPrice(lvl, count + 1);
+            const income = MINER_INCOME_BASE[lvl];
             container.innerHTML += `
-                <div class="miner-item flex">
-                    <div>⛏️ Шахтёр ${lvl} ур. (кол-во: ${count})<br>Доход: ${MINER_INCOME_BASE[lvl]}💎/сек</div>
-                    <button class="buyMinerBtn" data-level="${lvl}">Купить за ${nextPrice}💎</button>
+                <div class="miner-item">
+                    <div class="miner-info">
+                        <div class="miner-level">⛏️ Шахтёр ${lvl} уровня</div>
+                        <div class="miner-stats">Кол-во: ${count} | Доход: ${income} 💎/сек каждый</div>
+                    </div>
+                    <button class="buy-miner-btn" data-level="${lvl}">Купить за ${price} 💎</button>
                 </div>
             `;
         }
-        document.querySelectorAll('.buyMinerBtn').forEach(btn => {
-            btn.addEventListener('click', async () => {
+        document.querySelectorAll('.buy-miner-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
                 const level = parseInt(btn.dataset.level);
-                const res = await fetch('/api/buy-miner', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId, level}) });
+                const res = await fetch('/api/buy-miner', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uid: userId, level })
+                });
                 const result = await res.json();
-                if(result.success) fetchUser();
+                if (result.success) fetchUser();
                 else alert(result.error);
             });
         });
     }
 
-    // Helper для цены шахтера
-    const MINER_BASE_PRICE = [0,100,200,350,550,800,1100,1500];
-    function getMinerPrice(level, count) {
-        let base = MINER_BASE_PRICE[level];
-        return Math.floor(base * Math.pow(1.35, count-1));
+    // Кликер с зажимом
+    async function sendClick(clicks = 1) {
+        try {
+            const res = await fetch('/api/click', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uid: userId, clicks })
+            });
+            const data = await res.json();
+            if (data.success) fetchUser();
+        } catch(e) {}
     }
-    const MINER_INCOME_BASE = [0,5,10,20,35,55,80,120];
 
-    // Кликер (простой клик)
-    async function sendClick(clicks=1) {
-        const res = await fetch('/api/click', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId, clicks}) });
-        const data = await res.json();
-        if(data.success) fetchUser();
-    }
-    // Обработка зажима
-    let clickTimer = null;
-    let clickCount = 0;
+    let holdTimer = null;
+    let clickCounter = 0;
     function startHold() {
-        clickCount = 0;
-        clickTimer = setInterval(() => {
-            clickCount++;
+        if (holdTimer) return;
+        clickCounter = 0;
+        holdTimer = setInterval(() => {
             sendClick(1);
         }, 100);
     }
     function endHold() {
-        clearInterval(clickTimer);
+        if (holdTimer) {
+            clearInterval(holdTimer);
+            holdTimer = null;
+        }
     }
-    document.getElementById('clickArea').addEventListener('mousedown', startHold);
-    document.getElementById('clickArea').addEventListener('mouseup', endHold);
-    document.getElementById('clickArea').addEventListener('touchstart', startHold);
-    document.getElementById('clickArea').addEventListener('touchend', endHold);
-    document.getElementById('clickArea').addEventListener('click', () => sendClick(1));
+    const clickArea = document.getElementById('clickArea');
+    clickArea.addEventListener('mousedown', startHold);
+    clickArea.addEventListener('mouseup', endHold);
+    clickArea.addEventListener('touchstart', startHold);
+    clickArea.addEventListener('touchend', endHold);
+    clickArea.addEventListener('click', () => sendClick(1));
 
     // Обмен
     document.getElementById('exchangeBtn').addEventListener('click', async () => {
         const amount = parseInt(document.getElementById('exchangeAmount').value);
-        if(isNaN(amount)) return;
-        const res = await fetch('/api/exchange', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId, diamondsAmount:amount}) });
+        if (isNaN(amount) || amount <= 0) return alert("Введите число алмазов");
+        const res = await fetch('/api/exchange', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid: userId, diamondsAmount: amount })
+        });
         const data = await res.json();
-        if(data.success) fetchUser();
+        if (data.success) fetchUser();
         else alert(data.error);
     });
 
-    // Улучшения
+    // Улучшение шахты
     document.getElementById('upgradeMine').addEventListener('click', async () => {
-        const res = await fetch('/api/upgrade-mine', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId}) });
+        const res = await fetch('/api/upgrade-mine', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid: userId })
+        });
         const data = await res.json();
-        if(data.success) fetchUser();
-        else alert(data.error);
-    });
-    document.getElementById('upgradePickaxe').addEventListener('click', async () => {
-        const res = await fetch('/api/upgrade-pickaxe', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId}) });
-        const data = await res.json();
-        if(data.success) fetchUser();
+        if (data.success) fetchUser();
         else alert(data.error);
     });
 
-    // Боксы
+    // Улучшение кирки
+    document.getElementById('upgradePickaxe').addEventListener('click', async () => {
+        const res = await fetch('/api/upgrade-pickaxe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid: userId })
+        });
+        const data = await res.json();
+        if (data.success) fetchUser();
+        else alert(data.error);
+    });
+
+    // Открытие кейсов
+    async function openBox(boxType) {
+        const res = await fetch('/api/open-box', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid: userId, boxType })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(`🎁 Вы получили ${data.reward} ${data.rewardCurrency.toUpperCase()}!`);
+            fetchUser();
+        } else {
+            alert(data.error);
+        }
+    }
     document.getElementById('openCommonBox').addEventListener('click', () => openBox('common'));
     document.getElementById('openRareBox').addEventListener('click', () => openBox('rare'));
     document.getElementById('openDonatBox').addEventListener('click', () => openBox('donat'));
-    async function openBox(type) {
-        const res = await fetch('/api/open-box', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId, boxType:type}) });
-        const data = await res.json();
-        if(data.success) {
-            alert(`Вы получили ${data.reward} ${data.rewardCurrency}`);
-            fetchUser();
-        } else alert(data.error);
-    }
 
     // Буст
     document.getElementById('buyBoost2x').addEventListener('click', async () => {
-        const res = await fetch('/api/buy-boost', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId, multiplier:2, durationSeconds:3600}) });
+        const res = await fetch('/api/buy-boost', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid: userId, multiplier: 2, durationSeconds: 3600 })
+        });
         const data = await res.json();
-        if(data.success) fetchUser();
+        if (data.success) fetchUser();
         else alert(data.error);
     });
 
-    // Вывод / пополнение нефти
+    // Вывод нефти
     document.getElementById('withdrawOil').addEventListener('click', async () => {
-        let amount = prompt("Сколько нефти вывести? (мин 50)");
-        if(amount && amount>=50) {
-            const res = await fetch('/api/withdraw-oil', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId, amount:parseInt(amount)}) });
-            const data = await res.json();
-            if(data.success) alert("Заявка отправлена");
-            else alert(data.error);
-        } else alert("Введите корректную сумму");
+        let amount = prompt("Введите количество нефти для вывода (мин 50):", "50");
+        amount = parseInt(amount);
+        if (isNaN(amount) || amount < 50) return alert("Минимум 50 нефти");
+        const res = await fetch('/api/withdraw-oil', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid: userId, amount })
+        });
+        const data = await res.json();
+        if (data.success) alert(data.message || "Заявка отправлена администратору");
+        else alert(data.error);
     });
+
+    // Пополнение нефти (демо - моментальное, в реальности через платёж)
     document.getElementById('depositOil').addEventListener('click', async () => {
-        let amount = prompt("Сколько нефти пополнить? (мин 50)");
-        if(amount && amount>=50) {
-            // Здесь в реальности должна быть оплата, для демо просто выдаём
-            const res = await fetch('/api/deposit-oil', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:userId, amount:parseInt(amount)}) });
-            const data = await res.json();
-            if(data.success) fetchUser();
-            else alert(data.error);
-        }
+        let amount = prompt("Введите количество нефти для пополнения (от 50):", "50");
+        amount = parseInt(amount);
+        if (isNaN(amount) || amount < 50) return alert("Минимум 50 нефти");
+        const res = await fetch('/api/deposit-oil', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid: userId, amount })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(`Пополнение на ${amount} нефти выполнено!`);
+            fetchUser();
+        } else alert(data.error);
     });
+
+    // Поддержка
     document.getElementById('supportBtn').addEventListener('click', () => {
         tg.openTelegramLink('https://t.me/nukm0');
     });
 
-    // Топ
+    // Топ игроков
     async function loadTop() {
-        const res = await fetch('/api/top');
-        const top = await res.json();
-        let html = '<ol>';
-        top.forEach(u => html += `<li>${u.uid.slice(0,6)}... 💎${u.diamonds} 🛢️${u.oil}</li>`);
-        html += '</ol>';
-        document.getElementById('topList').innerHTML = html;
+        try {
+            const res = await fetch('/api/top');
+            const top = await res.json();
+            let html = '';
+            top.forEach((u, idx) => {
+                html += `<div class="top-item">
+                            <span>${idx+1}. ${u.uid.slice(0,8)}...</span>
+                            <span>💎 ${u.diamonds} | 🛢️ ${u.oil}</span>
+                         </div>`;
+            });
+            document.getElementById('topList').innerHTML = html || "Нет данных";
+        } catch(e) { console.error(e); }
     }
 
     // Навигация
@@ -270,13 +545,18 @@
             const tab = btn.dataset.tab;
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.getElementById(tab).classList.add('active');
+            document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active-tab'));
+            btn.classList.add('active-tab');
         });
     });
+    // Установить активный первый таб по умолчанию
+    document.querySelector('.nav button').classList.add('active-tab');
 
-    // Запуск
+    // Периодическое обновление
     fetchUser();
     loadTop();
-    setInterval(fetchUser, 5000); // обновление каждые 5 сек
+    setInterval(fetchUser, 5000);
+    setInterval(loadTop, 30000);
 </script>
 </body>
 </html>
