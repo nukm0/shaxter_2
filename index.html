@@ -382,78 +382,58 @@
         });
     }
 
-    // Кликер с зажимом
-    async function sendClick(clicks = 1) {
-        try {
-            const res = await fetch('/api/click', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ uid: userId, clicks })
-            });
-            const data = await res.json();
-            if (data.success) fetchUser();
-        } catch(e) {}
-    }
-
-    let holdTimer = null;
-    let clickCounter = 0;
-    function startHold() {
-        if (holdTimer) return;
-        clickCounter = 0;
-        holdTimer = setInterval(() => {
-            sendClick(1);
-        }, 100);
-    }
-    function endHold() {
-        if (holdTimer) {
-            clearInterval(holdTimer);
-            holdTimer = null;
+   // ========== КЛИКЕР ==========
+async function sendClick(clicks = 1) {
+    try {
+        const res = await fetch('/api/click', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid: userId, clicks })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.success) {
+            fetchUser(); // обновляем баланс
+            // Визуальный фидбек (небольшая анимация)
+            const clickArea = document.getElementById('clickArea');
+            clickArea.style.transform = 'scale(0.95)';
+            setTimeout(() => { clickArea.style.transform = ''; }, 100);
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
         }
+    } catch (err) {
+        console.error('Клик не отправлен:', err);
+        alert('Не удалось соединиться с сервером. Проверьте, запущен ли бэкенд.');
     }
-    const clickArea = document.getElementById('clickArea');
-    clickArea.addEventListener('mousedown', startHold);
-    clickArea.addEventListener('mouseup', endHold);
-    clickArea.addEventListener('touchstart', startHold);
-    clickArea.addEventListener('touchend', endHold);
-    clickArea.addEventListener('click', () => sendClick(1));
+}
 
-    // Обмен
-    document.getElementById('exchangeBtn').addEventListener('click', async () => {
-        const amount = parseInt(document.getElementById('exchangeAmount').value);
-        if (isNaN(amount) || amount <= 0) return alert("Введите число алмазов");
-        const res = await fetch('/api/exchange', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uid: userId, diamondsAmount: amount })
-        });
-        const data = await res.json();
-        if (data.success) fetchUser();
-        else alert(data.error);
-    });
+// Обработка обычного клика
+const clickArea = document.getElementById('clickArea');
+clickArea.addEventListener('click', (e) => {
+    e.stopPropagation();
+    sendClick(1);
+});
 
-    // Улучшение шахты
-    document.getElementById('upgradeMine').addEventListener('click', async () => {
-        const res = await fetch('/api/upgrade-mine', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uid: userId })
-        });
-        const data = await res.json();
-        if (data.success) fetchUser();
-        else alert(data.error);
-    });
-
-    // Улучшение кирки
-    document.getElementById('upgradePickaxe').addEventListener('click', async () => {
-        const res = await fetch('/api/upgrade-pickaxe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uid: userId })
-        });
-        const data = await res.json();
-        if (data.success) fetchUser();
-        else alert(data.error);
-    });
+// Зажим (удержание) — отправляем клики каждые 100 мс
+let holdInterval = null;
+function startHold() {
+    if (holdInterval) return;
+    holdInterval = setInterval(() => {
+        sendClick(1);
+    }, 100);
+}
+function stopHold() {
+    if (holdInterval) {
+        clearInterval(holdInterval);
+        holdInterval = null;
+    }
+}
+clickArea.addEventListener('mousedown', startHold);
+clickArea.addEventListener('mouseup', stopHold);
+clickArea.addEventListener('mouseleave', stopHold); // если мышь ушла с кнопки
+clickArea.addEventListener('touchstart', startHold, { passive: false });
+clickArea.addEventListener('touchend', stopHold);
+clickArea.addEventListener('touchcancel', stopHold);
 
     // Открытие кейсов
     async function openBox(boxType) {
